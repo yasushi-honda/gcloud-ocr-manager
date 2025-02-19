@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
 import {
   Box,
   Button,
@@ -21,10 +21,10 @@ import { GmailSettingsService } from '../../services/gmail-settings.service';
 import { GmailSettingsForm } from './GmailSettingsForm';
 
 export const GmailSettingsList: React.FC = () => {
-  const [settings, setSettings] = useState<GmailSettings[]>([]);
-  const [selectedSetting, setSelectedSetting] = useState<GmailSettings | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [error, setError] = useState<string>('');
+  const [settings, setSettings] = React.useState<GmailSettings[]>([]);
+  const [selectedSetting, setSelectedSetting] = React.useState<GmailSettings | null>(null);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [error, setError] = React.useState<string>('');
 
   const loadSettings = async () => {
     try {
@@ -35,7 +35,7 @@ export const GmailSettingsList: React.FC = () => {
     }
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     loadSettings();
   }, []);
 
