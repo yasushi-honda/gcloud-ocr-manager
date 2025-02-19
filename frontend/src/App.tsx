@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -11,7 +10,7 @@ import { Sidebar } from './components/common/Sidebar';
 
 const queryClient = new QueryClient();
 
-function App() {
+const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
@@ -46,6 +45,6 @@ function App() {
       </ThemeProvider>
     </QueryClientProvider>
   );
-}
+};
 
 export default App;
