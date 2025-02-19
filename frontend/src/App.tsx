@@ -8,6 +8,7 @@ import { AppRouter } from './routes';
 import { theme } from './theme';
 import { LoadingOverlay } from './components/common/LoadingOverlay';
 import { Notification } from './components/common/Notification';
+import { GmailSettingsList } from './components/GmailSettings/GmailSettingsList';
 
 // コンポーネントのインポート（後で実装）
 const MainLayout = () => <div>Main Layout</div>;
@@ -45,6 +46,14 @@ function App() {
                 <Route index element={<FileExplorer />} />
                 {/* 追加のルートはここに */}
               </Route>
+              <Route
+                path="/gmail-settings"
+                element={
+                  <PrivateRoute>
+                    <GmailSettingsList />
+                  </PrivateRoute>
+                }
+              />
             </Routes>
           </Router>
         </ThemeProvider>
