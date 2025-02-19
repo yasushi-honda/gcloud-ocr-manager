@@ -1,0 +1,20 @@
+steps:
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+  - scheduler
+  - jobs
+  - create
+  - http
+  - gmail-watch-refresh
+  - --schedule=0 0 * * 6
+  - --time-zone=Asia/Tokyo
+  - --uri=https://${_REGION}-${PROJECT_ID}.cloudfunctions.net/setup_gmail_watch
+  - --http-method=POST
+  - --headers=Content-Type=application/json
+  - --message-body='{}'
+  - --oidc-service-account-email=${_GMAIL_SERVICE_ACCOUNT}
+  - --location=${_REGION}
+
+substitutions:
+  _REGION: asia-northeast1
+  _GMAIL_SERVICE_ACCOUNT: gmail-integration@${PROJECT_ID}.iam.gserviceaccount.com
