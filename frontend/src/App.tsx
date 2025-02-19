@@ -1,64 +1,50 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
+import { ThemeProvider, CssBaseline } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Provider } from 'react-redux';
-import { store } from './store';
-import { AppRouter } from './routes';
 import { theme } from './theme';
 import { LoadingOverlay } from './components/common/LoadingOverlay';
 import { Notification } from './components/common/Notification';
 import { GmailSettingsList } from './components/GmailSettings/GmailSettingsList';
-
-// コンポーネントのインポート（後で実装）
-const MainLayout = () => <div>Main Layout</div>;
-const FileExplorer = () => <div>File Explorer</div>;
-const AdminDashboard = () => <div>Admin Dashboard</div>;
-const Login = () => <div>Login</div>;
-
-const darkTheme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: {
-      main: '#90caf9',
-    },
-    secondary: {
-      main: '#f48fb1',
-    },
-  },
-});
+import { PrivateRoute } from './components/common/PrivateRoute';
+import { Sidebar } from './components/common/Sidebar';
 
 const queryClient = new QueryClient();
 
 function App() {
   return (
-    <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <LoadingOverlay />
-          <Notification />
-          <Router>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/admin/*" element={<AdminDashboard />} />
-              <Route path="/" element={<MainLayout />}>
-                <Route index element={<FileExplorer />} />
-                {/* 追加のルートはここに */}
-              </Route>
-              <Route
-                path="/gmail-settings"
-                element={
-                  <PrivateRoute>
-                    <GmailSettingsList />
-                  </PrivateRoute>
-                }
-              />
-            </Routes>
-          </Router>
-        </ThemeProvider>
-      </QueryClientProvider>
-    </Provider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Router>
+          <div style={{ display: 'flex' }}>
+            <Sidebar />
+            <main style={{ flexGrow: 1, padding: '20px' }}>
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    <PrivateRoute>
+                      <div>Home</div>
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/gmail-settings"
+                  element={
+                    <PrivateRoute>
+                      <GmailSettingsList />
+                    </PrivateRoute>
+                  }
+                />
+              </Routes>
+            </main>
+          </div>
+        </Router>
+        <LoadingOverlay />
+        <Notification />
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 
