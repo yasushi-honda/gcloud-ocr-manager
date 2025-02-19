@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 認証設定
+    match /auth_settings/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        request.auth.token.role == 'admin';
+    }
+    
+    // 許可ドメイン
+    match /allowed_domains/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        request.auth.token.role == 'admin';
+    }
+    
+    // 許可メールアドレス
+    match /allowed_emails/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        request.auth.token.role == 'admin';
+    }
+
+    // ユーザープロファイル
+    match /users/{userId} {
+      allow read: if request.auth != null && 
+        (request.auth.uid == userId || request.auth.token.role == 'admin');
+      allow write: if request.auth != null && 
+        request.auth.token.role == 'admin';
+    }
+  }
+}
