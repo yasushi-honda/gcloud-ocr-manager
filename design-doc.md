@@ -908,3 +908,147 @@ gsutil mb -p myproject-prod -l us-central1 gs://myproject-ocr-temp-prod
   Cloud MonitoringやCloud Loggingと連携し、デプロイ後のパフォーマンスやエラー状況をリアルタイムで監視。これにより、運用中のシステム状態を常にフィードバックし、改善サイクルを促進します。
 
 このCI/CDパイプライン設計は、全体アーキテクチャに統合され、システムの安定性と拡張性を高める重要な要素となります。
+
+---
+
+## 17. Gmail連携モジュール
+
+### 17.1 概要
+
+本セクションでは、Gmail APIを利用したメール連携モジュールについて説明します。本モジュールは、Gmail APIの`watch()`機能を活用し、特定のラベルが付与されたメールの監視、添付ファイルの自動取得、Googleドライブへの保存、OCR処理との統合を実現します。
+
+---
+
+### 17.2 システム構成
+
+- **メール監視**: Gmail APIの`watch()`を使用し、対象ラベルが付与されたメールの受信をリアルタイム検知。
+- **通知受信**: Cloud Pub/Subを利用して、メール受信イベントをバックエンドに通知。
+- **添付ファイル取得**: バックエンドでGmail APIを利用し、対象メールの添付ファイルをダウンロード。
+- **ファイル保存**: ダウンロードした添付ファイルを指定のGoogleドライブフォルダに保存。
+- **OCR処理**: Googleドライブへの保存後、OCR処理を自動的にトリガー。
+
+```mermaid
+sequenceDiagram
+    participant User as ユーザー
+    participant Gmail as Gmail API
+    participant PubSub as Cloud Pub/Sub
+    participant Backend as Cloud Run Backend
+    participant Drive as Google Drive
+    participant OCR as OCR処理
+
+    User->>Gmail: メール送信（特定ラベル + 添付ファイル）
+    Gmail->>PubSub: watch() 通知送信
+    PubSub->>Backend: メール受信イベント通知
+    Backend->>Gmail: historyIdを利用してメール詳細取得
+    Backend->>Gmail: 添付ファイルダウンロード
+    Backend->>Drive: Googleドライブへファイル保存
+    Drive->>OCR: OCR処理をトリガー
+```
+
+---
+
+### 17.3 認証と権限
+
+#### 17.3.1 サービスアカウントの利用
+
+- Google Cloud上でGmail APIおよびGoogle Drive APIを操作するため、サービスアカウントを作成。
+- Google Workspace管理コンソールでドメイン全体の委任を設定し、Gmail APIへのアクセスを許可。
+
+#### 17.3.2 Googleドライブ権限
+
+- サービスアカウントのメールアドレスをGoogleドライブの対象フォルダの編集者として追加。
+- 自動化スクリプトを使用し、Google Drive APIを利用してフォルダの権限を設定。
+
+```bash
+FOLDER_ID="YOUR_FOLDER_ID"
+SERVICE_ACCOUNT="gmail-integration@myproject.iam.gserviceaccount.com"
+
+curl -X POST "https://www.googleapis.com/drive/v3/files/$FOLDER_ID/permissions" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "role": "writer",
+    "type": "user",
+    "emailAddress": "'"$SERVICE_ACCOUNT"'"
+  }'
+```
+
+#### 17.3.3 Pub/Subの設定
+
+- Gmail APIのwatch()を利用し、メールイベント通知を受け取るPub/Subトピックを作成。
+
+```bash
+gcloud pubsub topics create gmail-watch-topic
+```
+
+---
+
+### 17.4 デプロイ手順
+
+```bash
+# 1. Gmail APIの有効化
+gcloud services enable gmail.googleapis.com
+
+# 2. サービスアカウント作成
+gcloud iam service-accounts create gmail-integration \
+   --description="Gmail連携用サービスアカウント" \
+   --display-name="Gmail Integration Service Account"
+
+# 3. 必要なIAMロールの付与
+gcloud projects add-iam-policy-binding myproject \
+   --member="serviceAccount:gmail-integration@myproject.iam.gserviceaccount.com" \
+   --role="roles/gmail.readonly"
+gcloud projects add-iam-policy-binding myproject \
+   --member="serviceAccount:gmail-integration@myproject.iam.gserviceaccount.com" \
+   --role="roles/pubsub.publisher"
+
+gcloud projects add-iam-policy-binding myproject \
+   --member="serviceAccount:gmail-integration@myproject.iam.gserviceaccount.com" \
+   --role="roles/iam.serviceAccountUser"
+
+# 4. Pub/Subトピック作成
+gcloud pubsub topics create gmail-watch-topic
+
+# 5. watch() 設定
+gcloud functions deploy gmail-watch \
+   --runtime nodejs16 \
+   --trigger-topic gmail-watch-topic \
+   --entry-point handleGmailWatchEvent \
+   --service-account gmail-integration@myproject.iam.gserviceaccount.com
+```
+
+---
+
+### 17.5 エラーハンドリングと監視
+
+```mermaid
+graph TD
+    A[watch() 設定] --> B{有効期限超過?}
+    B -->|No| C[継続監視]
+    B -->|Yes| D[watch() 再登録]
+    D --> A
+```
+
+- watch() の有効期限管理（約7日間）
+- Cloud Schedulerを利用して定期的にwatchリクエストを再送信。
+
+```bash
+gcloud scheduler jobs create http gmail-watch-refresh \
+   --schedule "0 0 * * 6" \
+   --uri "https://your-cloud-function-url" \
+   --http-method POST
+```
+
+---
+
+### 17.6 まとめ
+
+本セクションでは、Gmail APIを利用したメール連携モジュールの設計について説明しました。
+
+- Gmailのwatch()機能を活用し、特定ラベル付きメールをリアルタイムで検知。
+- Cloud Pub/Subを通じて通知を受け取り、バックエンドで添付ファイルを取得。
+- 取得した添付ファイルをGoogleドライブへ保存し、OCR処理と統合。
+- watch()の定期更新、エラーハンドリング、リトライ戦略、監視・アラート設定を実装。
+
+この設計を基に、GmailとGoogleドライブ、OCR処理を組み合わせた効率的なワークフローを構築することができます。
+
